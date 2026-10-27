@@ -21,7 +21,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SomneoInvalidURLError(ClientError):
-    """Raised when the Somneo device responds with 422 Invalid URL."""
+    """Raised when the Somneo device responds with HTTP 422.
+
+    A 422 means the device rejected the request *payload*, not the URL.
+    The name is kept for backwards compatibility.
+    """
 
 
 class SomneoClientError(ClientError):
@@ -155,7 +159,8 @@ class SomneoSession:
                 if resp.status == 422:
                     resp.close()
                     raise SomneoInvalidURLError(
-                        f"Invalid URL: {full_url}"
+                        "Device rejected the request payload "
+                        f"(HTTP 422 Unprocessable Entity): {method} {full_url}"
                     )
 
                 _LOGGER.debug(

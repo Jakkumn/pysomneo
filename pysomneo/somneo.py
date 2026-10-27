@@ -472,10 +472,12 @@ class Somneo:
         alarm_settings: dict[str, Any] = {
             "prfnr": self.data["alarms"][alarm]["position"],
             "snddv": SOUND_SOURCE_ALARM[source],
+            # sndch must be a string: the device stores it as one and
+            # rejects an integer with HTTP 422.
             "sndch": (
-                self._wake_sound_themes[channel]
+                str(self._wake_sound_themes[channel])
                 if source == "wake-up"
-                else (" " if source == "off" else channel)
+                else (" " if source == "off" else str(channel))
             ),
             "sndlv": level,
         }
@@ -653,7 +655,7 @@ class Somneo:
                 sunset_settings["sndch"] = sound[3:]
             elif sound.lower() in self._dusk_sound_themes:
                 sunset_settings["snddv"] = "dus"
-                sunset_settings["sndch"] = self._dusk_sound_themes[sound.lower()]
+                sunset_settings["sndch"] = str(self._dusk_sound_themes[sound.lower()])
             else:
                 _LOGGER.error("Invalid sound specified: %s", sound)
                 raise ValueError(f"Unsupported sunset sound: {sound}")
@@ -744,7 +746,7 @@ class Somneo:
             sndch = source.split(" ")[1]
         elif source.lower() in self._dusk_sound_themes:
             snddv = "dus"
-            sndch = self._dusk_sound_themes[source.lower()]
+            sndch = str(self._dusk_sound_themes[source.lower()])
         else:
             _LOGGER.error("Invalid source specified: %s", source)
             raise ValueError(f"Unsupported player source: {source}")
