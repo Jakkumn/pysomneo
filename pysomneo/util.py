@@ -114,8 +114,16 @@ def sunset_to_dict(
     return data
 
 
-def player_to_dict(player: dict, dusk_sound_themes: dict) -> dict[str, Any]:
-    """Construct player data dictionary."""
+def player_to_dict(
+    player: dict, dusk_sound_themes: dict, sunset: dict | None = None
+) -> dict[str, Any]:
+    """Construct player data dictionary.
+
+    The player hardware only accepts AUX and FM. Nature ("dusk") sounds are
+    played by the sunset programme instead, so a running dusk programme is
+    reported here as the player's state - otherwise the media_player shows
+    "off" while sound is audibly playing.
+    """
     data: dict[str, Any] = {}
     data["state"] = bool(player.get("onoff", False))
     sdvol = player.get("sdvol", 1)
@@ -145,6 +153,18 @@ def player_to_dict(player: dict, dusk_sound_themes: dict) -> dict[str, Any]:
         possible_sources += [name.title() for name in dusk_sound_themes.keys()]
 
     data["possible_sources"] = possible_sources
+
+    if sunset and sunset.get("onoff") and sunset.get("snddv") == "dus":
+        data["state"] = True
+        sndlv = sunset.get("sndlv", 1)
+        data["volume"] = max(0.0, min(1.0, (float(sndlv) - 1) / 24)) if sndlv else 0.0
+        ch = sunset.get("sndch")
+        name = next(
+            (k for k, v in (dusk_sound_themes or {}).items() if str(v) == str(ch)),
+            None,
+        )
+        if name:
+            data["source"] = name.title()
 
     return data
 

@@ -252,7 +252,9 @@ class Somneo:
 
     def _update_player_data(self) -> None:
         """Update player data in data object."""
-        self.data["player"] = player_to_dict(self.player, self.dusk_sound_themes)
+        self.data["player"] = player_to_dict(
+            self.player, self.dusk_sound_themes, self.sunset_data
+        )
 
     async def _fetch_player_data(self) -> None:
         """Fetch only the player data from Somneo."""
@@ -687,6 +689,18 @@ class Somneo:
         """
         if not self.player:
             await self._fetch_player_data()
+        if self.sunset_data is None:
+            await self._fetch_sunset_data()
+
+        # If a dusk programme is what is actually audible, toggle that.
+        if (
+            self.sunset_data
+            and self.sunset_data.get("onoff")
+            and self.sunset_data.get("snddv") == "dus"
+        ):
+            await self.toggle_sunset(state)
+            await self._fetch_player_data()
+            return
 
         data = dict(self.player)
         data["onoff"] = state
@@ -707,6 +721,15 @@ class Somneo:
             volume: Volume level between 0.0 and 1.0
         """
         volume = min(max(volume, 0), 1)
+
+        if (
+            self.sunset_data
+            and self.sunset_data.get("onoff")
+            and self.sunset_data.get("snddv") == "dus"
+        ):
+            await self.set_sunset(volume=int(volume * 24 + 1))
+            await self._fetch_player_data()
+            return
 
         payload = {"sdvol": int(volume * 24 + 1)}
         _LOGGER.debug("PUT set_player_volume payload=%s", payload)
@@ -745,8 +768,15 @@ class Somneo:
             snddv = "fmr"
             sndch = source.split(" ")[1]
         elif source.lower() in self._dusk_sound_themes:
-            snddv = "dus"
-            sndch = str(self._dusk_sound_themes[source.lower()])
+            # wuply silently ignores snddv "dus": the PUT returns 200 and the
+            # field reverts to "off". Nature sounds are only playable through
+            # the sunset programme, so drive that instead.
+            if self.player and self.player.get("onoff"):
+                await self.toggle_player(False)
+            await self.set_sunset(sound=source)
+            await self.toggle_sunset(True)
+            await self._fetch_player_data()
+            return
         else:
             _LOGGER.error("Invalid source specified: %s", source)
             raise ValueError(f"Unsupported player source: {source}")
