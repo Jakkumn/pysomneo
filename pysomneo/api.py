@@ -330,33 +330,34 @@ class SomneoClient:
             Dictionary containing wake_light, dusk_light, wake_sound,
             and dusk_sound theme mappings
         """
+        # The device returns these as {"<id>": {"name": ...}}, and the ids are
+        # NOT always in ascending order - an HF3670 returns lightthemes as
+        # 1,3,2,4. Deriving the value from enumerate() position therefore
+        # mismatches the theme to the wrong id. Use the key the device gave us.
+        #
+        # ctype (light themes) is 0-based: ids 1-4 map to ctype 0-3, and the
+        # device rejects ctype 4 with HTTP 422.
+        # sndch (sounds) is 1-based and matches the id directly.
         return {
             "wake_light": {
-                item["name"].lower(): idx
-                for idx, item in enumerate(
-                    (await self._get("files/lightthemes")).values()
-                )
-                if item["name"]
+                item["name"].lower(): int(key) - 1
+                for key, item in (await self._get("files/lightthemes")).items()
+                if item.get("name")
             },
             "dusk_light": {
-                item["name"].lower(): idx
-                for idx, item in enumerate(
-                    (await self._get("files/dusklightthemes")).values()
-                )
+                item["name"].lower(): int(key) - 1
+                for key, item in (await self._get("files/dusklightthemes")).items()
+                if item.get("name")
             },
             "wake_sound": {
-                item["name"].lower(): idx + 1
-                for idx, item in enumerate(
-                    (await self._get("files/wakeup")).values()
-                )
-                if item["name"]
+                item["name"].lower(): int(key)
+                for key, item in (await self._get("files/wakeup")).items()
+                if item.get("name")
             },
             "dusk_sound": {
-                item["name"].lower(): idx + 1
-                for idx, item in enumerate(
-                    (await self._get("files/winddowndusk")).values()
-                )
-                if item["name"]
+                item["name"].lower(): int(key)
+                for key, item in (await self._get("files/winddowndusk")).items()
+                if item.get("name")
             },
         }
 
